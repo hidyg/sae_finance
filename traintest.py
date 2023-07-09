@@ -208,31 +208,16 @@ class sae:
             self.model.to(self.device)
             y,x,H,_ = self.model(X)
 
-        if not self.classification:
-            # easier if no classification takes place -> dont have helper layers
-            pd_out = pd.DataFrame(H.cpu().detach().numpy().squeeze(), index=pd_index)
-            pd_out.columns = colnames_list
-        else:
-            # have helper layers -> want to analyse predictions from these, too
-            # get class prediction of regularizing layer
-            # a) H
-            pd_out = pd.DataFrame( H.cpu().detach().numpy().squeeze(), index=pd_index)
-            pd_out.columns = colnames_list
+        pd_out = pd.DataFrame(H.cpu().detach().numpy().squeeze(), index=pd_index)
+        pd_out.columns = colnames_list
 
+        if self.classification:
             # change sign of H (have 0=negative, 1=positive) if linear mapping configured as 1=negative, 0=positive
             for i in range(0,len(self.model.enc.cl1.transforms)):
                 # check directionality in classification mapping:
                 # need first - then + to match 0,1 labels
                 if self.model.enc.cl1.transforms[i].weight.data[0] > 0 and self.model.enc.cl1.transforms[i].weight.data[1] < 0:
                     pd_out[pd_out.columns[i]] = pd_out[pd_out.columns[i]]*-1
-
-            # b) the helper layers
-            # encoding shape > 1 -> more variables.
-            splits = [x for x in range(0, y.shape[1], int(y.shape[1] / len(colnames_list)))] + [y.shape[1]]
-            # length equal to colnames list
-            for i in range(0,len(splits)-1):
-                # get the predictions from the "helper layers"
-                _, pd_out['y_hat'+colnames_list[i]+'_'+str(i)] = torch.max(y[:,splits[i]:splits[i+1]].data, 1)
 
         return pd_out
 

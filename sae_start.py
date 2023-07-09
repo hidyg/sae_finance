@@ -12,9 +12,7 @@ import datetime
 
 if __name__=='__main__':
 
-
     cutoff = datetime.datetime.strptime('2004-01-01', '%Y-%m-%d')
-
 
     pd_X = pd.read_csv('sample_data_X.csv',index_col='DATE' )
     pd_y = pd.read_csv('sample_data_y.csv',index_col='DATE' )
@@ -25,7 +23,7 @@ if __name__=='__main__':
     X_names_in = pd_X.columns
     Y_names_in = pd_y.columns
 
-
+    # data loaders / train test split
     train_loader, test_loader, train_data, test_data = data_loader.load_sent_data( train_batch_size = 50,
                                                             test_batch_size = 1000,
                                                             df = pd_X.join(pd_y), df_cutoff = cutoff,
@@ -34,7 +32,7 @@ if __name__=='__main__':
                                                             train_dates=pd.date_range(start=cutoff, end="2018-06-30"),
                                                             convert_Y_to_labels = True, shuffle = True )
 
-    # set up
+    # set up model
     saemodel = models.encoder_decoder( X_dim_in=len(X_names_in), map_layer_dims=[10], encoding_layer_dim=len(Y_names_in),
                                                  dropout_p=0.1, classification=True,  external_enc = None )
 
@@ -47,5 +45,8 @@ if __name__=='__main__':
                        sparse_regularizer= 0.0)
 
     # train
-    sae.train(epochs=40, train_loader = train_loader)
+    sae.train(epochs=40, train_loader = train_loader, val_loader = None)
+
+    # get representations on test
+    pd_H = sae.predict_H(X_in=test_data.Xs, pd_index=test_data.pdidx, colnames_list = ['Eq', 'FI', 'Macr', 'Cmdty', 'FX'])
 
