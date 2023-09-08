@@ -5,6 +5,7 @@ import torch.optim as optim
 import pandas as pd
 from losses import sparse_loss
 # tensorboard
+from tensorboardX import SummaryWriter
 # import tensorflow as tf
 from typing import Callable, List, Tuple
 
@@ -25,7 +26,8 @@ class sae:
                  train_loss_wgt: bool = True,
                  classification: bool = False,
                  firsttrain_reconstruction: int = 0,
-                 sparse_regularizer: float = 0.0
+                 sparse_regularizer: float = 0.0,
+                 tx_writer: SummaryWriter =  SummaryWriter('runs')
                  ):
         '''
         wrapper class handling training, storing of trained models
@@ -52,6 +54,7 @@ class sae:
         self.all_losses = np.zeros(len(sub_losses_in_wgt_init))
         self.firsttrain_reconstruction = firsttrain_reconstruction
         self.sparse_regularizer = sparse_regularizer
+        self.tx_writer = tx_writer # Saves the summaries to the directory 'runs' in the current parent directory
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -121,8 +124,7 @@ class sae:
 
             for (X, y, idxs) in train_loader:
                 batchidx += 1
-                #X = torch.Tensor(X).to(self.device)
-                #y = torch.Tensor(y).to(self.device)
+
                 X = X.to(self.device)
                 y = y.to(self.device)
 
@@ -132,9 +134,7 @@ class sae:
 
                 optimizer.zero_grad()
                 y_hat, x_hat, _, activations_out = self.model(X)
-                y_hat = y_hat
-                x_hat = x_hat
-                loss, loss_components = self.loss_fct(y_hat, x_hat, y, X, losswgt_in, self.sub_losses)
+                loss, loss_components = self.loss_fct(y_hat, x_hat, y.float(), X, losswgt_in, self.sub_losses)
 
                 # add sparsity loss
                 loss += self.sparse_regularizer * sparse_loss( activations_out )
@@ -148,7 +148,8 @@ class sae:
                 if self.classification:
                     for i in range(0,(len(self.sub_losses)-1)):
                         # only first classification at this stage
-                        _, pred_class = torch.max(y_hat[:,(i*2):(i*2+2)].data, 1)  # returns tuple
+                        #_, pred_class = torch.max(y_hat[:,(i*2):(i*2+2)].data, 1)  # returns tuple
+                        pred_class = (y_hat[:, i].data > torch.tensor(0.5)).int()  #
                         # add up mini batch acc
                         epch_acc[i] += (pred_class.unsqueeze(1) == y[:,i].unsqueeze(1) ).sum().item() / (len(train_loader) * X.size(0))
 
@@ -156,6 +157,7 @@ class sae:
                 for k in range(0, len(self.sub_losses)):
                     component_losses[k] += loss_components[k].item() / len(train_loader)
 
+            #  collect losses
             all_epoch_losses.append( component_losses + [epch_loss] + epch_acc )
             print('SAE train: Batch Nr', batchidx, ' iteration')
             print('SAE train: Epoch: ', epoch, ' - train_loss: ', epch_loss)
@@ -163,6 +165,10 @@ class sae:
             printout = 'SAE train: Epoch: '+ str( epoch )
             printout = printout + '. '.join([' - loss_' +str(lnr)+':' + str(component_losses[lnr])   for lnr in range(0,len(self.sub_losses))])
             print(printout) #'SAE train: Epoch: ', epoch, ' - loss_1: ', component_losses[0], ' - loss_2: ', component_losses[1]
+
+            # write tensorboardX summary
+            self.write_tx_summaries(tx_writer=self.tx_writer, run_type='(training)', component_losses=component_losses,
+                                    epch_loss=epch_loss, epch_acc=epch_acc, e=epoch)
 
             if val_loader is not None:
                 # evaluate model on validation data
@@ -181,10 +187,40 @@ class sae:
                         component_losses_val[k] += loss_componentsv[k].item() / len(val_loader)
                 all_epoch_losses_val.append(component_losses_val + [epch_loss_val] + [0.0] )
 
+                # tensorboardX summary
+                self.write_tx_summaries(tx_writer=self.tx_writer,run_type='(validation)',component_losses=component_losses_val,
+                                        epch_loss = epch_loss_val,epch_acc=[], e = epoch)
+
             print('SAE train: Epoch: ', epoch, ' - loss weights: ', losswgt_in)  # params[-len(lossweights):]
 
         self.all_losses = all_epoch_losses
         self.all_losses_val = all_epoch_losses_val
+
+
+    def write_tx_summaries(self,
+                           tx_writer:  SummaryWriter,
+                           run_type: str,
+                           component_losses: List[float],
+                           epch_loss: List[float],
+                           epch_acc: List[float],
+                           e
+                           ) -> None:
+        '''
+        :param tx_writer: initialized tx writer
+        :param run_type: val / test
+        :param component_losses:  list of individual losses
+        :param epch_loss:  aggregate loss
+        :param epch_acc:   accuracies for supervision losses
+        :param e:  epoch nr
+        :return: none
+        '''
+        # write tensorboardX summary validation
+        for k in range(0, len(component_losses)):
+            tx_writer.add_scalar(run_type+' component loss ' + str(k), component_losses[k], e)
+        tx_writer.add_scalar(run_type+' final loss sum', epch_loss, e)
+        for k in range(0, len(epch_acc)):
+            tx_writer.add_scalar(run_type+' component accuracy ' + str(k), epch_acc[k], e)
+
 
     # test data predictions
     def predict_H(self,
@@ -202,7 +238,7 @@ class sae:
         '''
         self.model.eval()
 
-        X = torch.tensor(X_in, dtype = torch.float) # customize this
+        X = torch.tensor(X_in, dtype = torch.float, device=self.device) # customize this
         with torch.no_grad():
             # dont train, use trained model
             self.model.to(self.device)
@@ -216,7 +252,8 @@ class sae:
             for i in range(0,len(self.model.enc.cl1.transforms)):
                 # check directionality in classification mapping:
                 # need first - then + to match 0,1 labels
-                if self.model.enc.cl1.transforms[i].weight.data[0] > 0 and self.model.enc.cl1.transforms[i].weight.data[1] < 0:
+                #if self.model.enc.cl1.transforms[i].weight.data[0] > 0 and self.model.enc.cl1.transforms[i].weight.data[1] < 0:
+                if self.model.enc.cl1.transforms[i].weight.data[0] < 0:
                     pd_out[pd_out.columns[i]] = pd_out[pd_out.columns[i]]*-1
 
         return pd_out

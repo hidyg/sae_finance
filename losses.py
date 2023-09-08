@@ -10,32 +10,32 @@ def loss_UW(
         losses: List[torch.nn.Module]
     ) -> Tuple[ torch.Tensor, List[torch.Tensor]] :
     '''
+
+    not used ... DEPRECATED
+    idea: learn loss weights along the way
+
     uncertainty weight loss
     -> use case: learn weights of losses while training
 
-   :param y_hat: hidden layer "predictions" for additional losses
-   :param x_hat: final layer "predictions" for the standard reconstruction loss
-   :param y: supervision of y_hat
-   :param x: supervision of x_hat ( the initial data fed in )
-   :param log_lossweights:  list of log weights for losses
-   :param losses: list of losses: [ nn.NLLLoss() , nn.L1Loss() ]
-   :return: tuple of scalar loss and list of sublosses
-   '''
+    :param y_hat: hidden layer "predictions" for additional losses
+    :param x_hat: final layer "predictions" for the standard reconstruction loss
+    :param y: supervision of y_hat
+    :param x: supervision of x_hat ( the initial data fed in )
+    :param log_lossweights:  list of log weights for losses
+    :param losses: list of losses: [ nn.NLLLoss() , nn.L1Loss() ]
+    :return: tuple of scalar loss and list of sublosses
+    '''
+
 
     factor_1 = torch.div(1.0, torch.mul(2.0, log_lossweights[0].exp().pow(2)))
     l1 = losses[0](x_hat, x)  # .squeeze()
     l = torch.add(torch.mul(factor_1, l1), torch.log(log_lossweights[0].exp()))
     sublosses  = [l]
 
-    # split y, yhat according to number of log_lossweights-1 (first is reconstruction loss)
-    loss_nr = len(log_lossweights)-1
-    #splits = [x for x in range(0,y.shape[1],loss_nr)] + [y.shape[1]]
-    splits = [x for x in range(0, y_hat.shape[1], int(y_hat.shape[1] / loss_nr))] + [y_hat.shape[1]]
-
-    for i in range(1,loss_nr+1):
+    for i in range(1,len(log_lossweights)):
         factor_i = torch.div(1.0, torch.mul(2.0, log_lossweights[i].exp().pow(2)))
         # y broadcasted if not matching y_hat! :
-        l_i = losses[i](y_hat[:,splits[i-1]:splits[i]], y[:,i-1])  # dims y_hat: B x encodingdim   dims y: B x nr of losses
+        l_i = losses[i](y_hat[:,i-1], y[:,i-1])  # dims y_hat: B x encodingdim   dims y: B x nr of losses
         l_i = torch.add(torch.mul(factor_i, l_i), torch.log(log_lossweights[i].exp()))
         sublosses.append( l_i )
         l = l.add( l_i )
@@ -64,19 +64,15 @@ def loss_fixedW_RNNencdec(
     :param losses: list of losses: [ nn.NLLLoss() , nn.L1Loss() ]
     :return: tuple of scalar loss and list of sublosses
     '''
-
     # reconstruction loss only against last element
     l = torch.mul(log_lossweights[0], losses[0](x_hat, x[:,-1,:]) )
     sublosses  = [l]
 
-    # split y, yhat according to number of log_lossweights-1 (first is reconstruction loss)
-    loss_nr = len(log_lossweights)-1
-    splits = [x for x in range(0,y_hat.shape[1],int(y_hat.shape[1]/loss_nr) )] + [y_hat.shape[1]]
-
-    for i in range(1,loss_nr+1):
+    # note: first loss is reconstruction
+    for i in range(1,len(log_lossweights)):
 
         # y broadcasted if not matching y_hat! :
-        l_i = losses[i](y_hat[:,splits[i-1]:splits[i]], y[:,i-1])  # dims y_hat: B x encodingdim   dims y: B x nr of losses
+        l_i = losses[i](y_hat[:,i-1], y[:,i-1])  # dims y_hat: B x encodingdim   dims y: B x nr of losses
 
         l_i = torch.mul( log_lossweights[i], l_i)
         sublosses.append( l_i )
@@ -107,17 +103,14 @@ def loss_fixedW(
     :return: tuple of scalar loss and list of sublosses
     '''
 
+    # the reconstruction loss
     l = torch.mul(log_lossweights[0], losses[0](x_hat, x) )
     sublosses  = [l]
 
-    # split y, yhat according to number of log_lossweights-1 (first is reconstruction loss)
-    loss_nr = len(log_lossweights)-1
-    splits = [x for x in range(0,y_hat.shape[1],int(y_hat.shape[1]/loss_nr) )] + [y_hat.shape[1]]
-
-    for i in range(1,loss_nr+1):
-
-        # y broadcasted if not matching y_hat! :
-        l_i = losses[i](y_hat[:,splits[i-1]:splits[i]], y[:,i-1])  # dims y_hat: B x encodingdim   dims y: B x nr of losses
+    # note: first loss is reconstruction
+    for i in range(1,len(log_lossweights)):
+        # y broadcasted if not matching y_hat
+        l_i = losses[i](y_hat[:,i-1], y[:,i-1])  # dims y_hat: B x encodingdim   dims y: B x nr of losses
 
         l_i = torch.mul( log_lossweights[i], l_i)
         sublosses.append( l_i )
@@ -164,14 +157,10 @@ def loss_fixedW_noreconstruction(
 
     sublosses  = [ torch.as_tensor( 0.0 ) ]
 
-    # split y, yhat according to number of log_lossweights-1 (first is reconstruction loss)
-    loss_nr = len(log_lossweights)-1
-    splits = [x for x in range(0,y_hat.shape[1],int(y_hat.shape[1]/loss_nr) )] + [y_hat.shape[1]]
-
-    for i in range(1,loss_nr+1):
+    for i in range(1,len(log_lossweights)):
 
         # y broadcasted if not matching y_hat! :
-        l_i = losses[i](y_hat[:,splits[i-1]:splits[i]], y[:,i-1])  # dims y_hat: B x encodingdim   dims y: B x nr of losses
+        l_i = losses[i](y_hat[:,i-1], y[:,i-1])  # dims y_hat: B x encodingdim   dims y: B x nr of losses
 
         l_i = torch.mul( log_lossweights[i], l_i)
         sublosses.append( l_i )

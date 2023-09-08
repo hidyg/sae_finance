@@ -71,10 +71,11 @@ class encoder_netw(nn.Module):
             finallayer = HiddenElementsFinalLayer_fullyconnected
         else:
             finallayer = HiddenElementsFinalLayer
-        if classification:
-            self.cl1 = finallayer(hidden_size=encoding_layer_dim, map_element_size=2)
-        else:
-            self.cl1 = finallayer(hidden_size=encoding_layer_dim, map_element_size=1)
+        #if classification:
+        #    self.cl1 = finallayer(hidden_size=encoding_layer_dim, map_element_size=1)
+        #else:
+        #    self.cl1 = finallayer(hidden_size=encoding_layer_dim, map_element_size=1)
+        self.cl1 = finallayer(hidden_size=encoding_layer_dim, map_element_size=1)
 
         self.dropout_p = dropout_p
         self.encoding_layer_dim = encoding_layer_dim
@@ -159,10 +160,11 @@ class RNNEncoder(nn.Module):
             finallayer = HiddenElementsFinalLayer_fullyconnected
         else:
             finallayer = HiddenElementsFinalLayer
-        if classification:
-            self.cl1 = finallayer(hidden_size=hidden_size, map_element_size=2)
-        else:
-            self.cl1 = finallayer(hidden_size=hidden_size, map_element_size=1)
+        #if classification:
+        #    self.cl1 = finallayer(hidden_size=hidden_size, map_element_size=2)
+        #else:
+        #    self.cl1 = finallayer(hidden_size=hidden_size, map_element_size=1)
+        self.cl1 = finallayer(hidden_size=hidden_size, map_element_size=1)
         self.activ_loss = activations['loss']  # activation of pre-final layer
 
     def forward(self,
