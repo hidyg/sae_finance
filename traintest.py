@@ -167,7 +167,7 @@ class sae:
             print(printout) #'SAE train: Epoch: ', epoch, ' - loss_1: ', component_losses[0], ' - loss_2: ', component_losses[1]
 
             # write tensorboardX summary
-            self.write_tx_summaries(tx_writer=self.tx_writer, run_type='(training)', component_losses=component_losses,
+            self.write_tx_summaries( run_type='(training)', component_losses=component_losses,
                                     epch_loss=epch_loss, epch_acc=epch_acc, e=epoch)
 
             if val_loader is not None:
@@ -188,7 +188,7 @@ class sae:
                 all_epoch_losses_val.append(component_losses_val + [epch_loss_val] + [0.0] )
 
                 # tensorboardX summary
-                self.write_tx_summaries(tx_writer=self.tx_writer,run_type='(validation)',component_losses=component_losses_val,
+                self.write_tx_summaries(run_type='(validation)',component_losses=component_losses_val,
                                         epch_loss = epch_loss_val,epch_acc=[], e = epoch)
 
             print('SAE train: Epoch: ', epoch, ' - loss weights: ', losswgt_in)  # params[-len(lossweights):]
@@ -198,7 +198,6 @@ class sae:
 
 
     def write_tx_summaries(self,
-                           tx_writer:  SummaryWriter,
                            run_type: str,
                            component_losses: List[float],
                            epch_loss: List[float],
@@ -216,10 +215,10 @@ class sae:
         '''
         # write tensorboardX summary validation
         for k in range(0, len(component_losses)):
-            tx_writer.add_scalar(run_type+' component loss ' + str(k), component_losses[k], e)
-        tx_writer.add_scalar(run_type+' final loss sum', epch_loss, e)
+            self.tx_writer.add_scalar(run_type+' component loss ' + str(k), component_losses[k], e)
+        self.tx_writer.add_scalar(run_type+' final loss sum', epch_loss, e)
         for k in range(0, len(epch_acc)):
-            tx_writer.add_scalar(run_type+' component accuracy ' + str(k), epch_acc[k], e)
+            self.tx_writer.add_scalar(run_type+' component accuracy ' + str(k), epch_acc[k], e)
 
 
     # test data predictions
