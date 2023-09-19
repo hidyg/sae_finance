@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import pandas as pd
-from losses import sparse_loss
+from utils.losses import sparse_loss
 # tensorboard
 from tensorboardX import SummaryWriter
 # import tensorflow as tf
@@ -27,7 +27,8 @@ class sae:
                  classification: bool = False,
                  firsttrain_reconstruction: int = 0,
                  sparse_regularizer: float = 0.0,
-                 tx_writer: SummaryWriter =  SummaryWriter('runs')
+                 tx_writer: SummaryWriter =  SummaryWriter('runs'),
+                 save_model = False
                  ):
         '''
         wrapper class handling training, storing of trained models
@@ -38,8 +39,12 @@ class sae:
         :param lr_in: learning rate
         :param optim_in: the optimizer ... Adam, pure SGD+ nesterovmom
         :param l2strength: L2 reg on weights
+        :param l1strength: L1 reg on weights (not used)
         :param train_loss_wgt:  train loss weights along the way
         :param classification: switch on the type of additional losses ( MSE possible. currently: should be True, want to do classification)
+        :param sparse_regularizer: possibility to use sparse autoencoders. this is the penalty term multiplier
+        :param tx_writer: tensorboardX summarywriter
+
         '''
         self.model = model_in
         self.loss_fct = loss_fct_in
@@ -55,6 +60,7 @@ class sae:
         self.firsttrain_reconstruction = firsttrain_reconstruction
         self.sparse_regularizer = sparse_regularizer
         self.tx_writer = tx_writer # Saves the summaries to the directory 'runs' in the current parent directory
+        self.save_model = save_model
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -114,9 +120,8 @@ class sae:
             epch_loss_val = 0.0
             component_losses_val = [0.0 for x in self.sub_losses]
 
-            # for batch_idx, (data, label) in enumerate(train_loader):
-
             # in the firsttrain_reconstruction epochs, only train the reconstruction loss
+            # only classification case so far
             if not self.train_loss_wgt and epoch<self.firsttrain_reconstruction and self.classification:
                 losswgt_in = lossweights_first_epochs
             else:
@@ -156,6 +161,10 @@ class sae:
                 # loss components
                 for k in range(0, len(self.sub_losses)):
                     component_losses[k] += loss_components[k].item() / len(train_loader)
+
+            if self.save_model:
+                # to do, save after each epch
+                pass
 
             #  collect losses
             all_epoch_losses.append( component_losses + [epch_loss] + epch_acc )
@@ -246,6 +255,7 @@ class sae:
         pd_out = pd.DataFrame(H.cpu().detach().numpy().squeeze(), index=pd_index)
         pd_out.columns = colnames_list
 
+        # align signs in the H time series to match supervisions
         if self.classification:
             # change sign of H (have 0=negative, 1=positive) if linear mapping configured as 1=negative, 0=positive
             for i in range(0,len(self.model.enc.cl1.transforms)):
