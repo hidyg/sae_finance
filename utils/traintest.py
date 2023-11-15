@@ -7,7 +7,7 @@ from utils.losses import sparse_loss
 # tensorboard
 from tensorboardX import SummaryWriter
 # import tensorflow as tf
-from typing import Callable, List, Tuple
+from typing import Callable, List, Tuple, Union
 
 
 
@@ -234,7 +234,9 @@ class sae:
     def predict_H(self,
                   X_in: np.array,
                   pd_index: pd.Index,
-                  colnames_list: List[str] = ['H'] ) -> pd.DataFrame:
+                  colnames_list: List[str] = ['H'],
+                  trainloader:  Union[torch.utils.data.DataLoader,None] = None,
+                  testloader:  Union[torch.utils.data.DataLoader,None] = None) -> pd.DataFrame:
         '''
         prediction of the low dimension "H" layer
         :param X_in: input (sentiment data X (t x K topics)
@@ -247,10 +249,32 @@ class sae:
         self.model.eval()
 
         X = torch.tensor(X_in, dtype = torch.float, device=self.device) # customize this
-        with torch.no_grad():
-            # dont train, use trained model
-            self.model.to(self.device)
-            y,x,H,_ = self.model(X)
+        if trainloader is None and testloader is None:
+            with torch.no_grad():
+                # dont train, use trained model
+                self.model.to(self.device)
+                y,x,H,_ = self.model(X)
+        else:
+            with torch.no_grad():
+                # collect data by running through train and test loaders
+                y_out, x_out, H_out = [],[],[]
+                if trainloader is not None:
+                    for (X, _, _) in trainloader:
+                        X = X.to(self.device)
+                        y_B, x_B, H_B, _ = self.model(X)
+                        y_out.append( y_B )
+                        x_out.append( x_B )
+                        H_out.append( H_B )
+                if testloader is not None:
+                    for (X, _, _) in testloader:
+                        X = X.to(self.device)
+                        y_B, x_B, H_B, _ = self.model(X)
+                        y_out.append(y_B)
+                        x_out.append(x_B)
+                        H_out.append(H_B)
+
+            # the predictions
+            y, x, H = torch.cat(y_out), torch.cat(x_out), torch.cat(H_out)
 
         pd_out = pd.DataFrame(H.cpu().detach().numpy().squeeze(), index=pd_index)
         pd_out.columns = colnames_list
