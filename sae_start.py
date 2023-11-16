@@ -43,7 +43,6 @@ saemodel = models.encoder_decoder(X_dim_in=len(X_names_in), map_layer_dims=[10],
 
 # set up train / test
 sae = traintest.sae(model_in = saemodel, loss_fct_in = losses.loss_fixedW,
-                    #sub_losses_in = [nn.MSELoss()]+ [nn.CrossEntropyLoss()]*len(Y_names_in), train_loss_wgt=False,
                     sub_losses_in=[nn.MSELoss()] + [nn.BCELoss()] * len(Y_names_in), train_loss_wgt=False,
                     lr_in= 0.005,
                     sub_losses_in_wgt_init = [10 / len(Y_names_in)] + [0.05 / len(Y_names_in)] * (len(Y_names_in) ),

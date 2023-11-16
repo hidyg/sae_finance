@@ -51,14 +51,11 @@ sent_slot_pos = {'var'+str(x)+ '_{'+frq : x for x in range(0,dim_of_supervision)
 run_pooled_tests = False
 
 # collect all prefixes
-NN_prefixes = { 'SENT_PC':'sent-PCA', 'M_PC':'macro-PCA','AEDe_d_':'AEdeep','AESh_d_':'AEshllw','AEDeDe_d_':'AEDEEP', 'ReconFirst_':'SupAE',
-              'ReconFirstDe_d_':'SupAEdeep','ReconFirstSh_d_':'SupAEshllw','ReconFirstDeDe_d_':'SupAEdeeper',
-                'PureClassif_d_':'NNclssfr','PureClassifDe_d_':'NNclssfrdeep','PureClassifDeDe_d_':'NNclssfrdeeper',
-                'PureClassifSh_d_':'NNclssfrshllw',
-                'GRUAE_d_':'GRU', #  important: switch GRU prefix here
-                'PureRegr_d_':'NNregr','ReconFirstRegr_d_':'Supregr',
-                'PrCA_d_':'PCAroll','PLS01_d_':'PLSbin','PLSreg_d_':'PLSregr','LAS_d_':'Lasso',
-                'logregL1_d_': 'logregL1'
+NN_prefixes = { 'SENT_PC':'sent-PCA', 'M_PC':'macro-PCA', 'ReconFirst_':'SupAE',
+                'PureClassif_d_':'NNclssfr',
+                'GRUAE_d_':'GRU',
+                'PureRegr_d_':'NNregr',
+                'PrCA_d_':'PCAroll','PLS01_d_':'PLSbin','PLSreg_d_':'PLSregr'
                 }
 
 # loop over files and descriptions each file contains learned representations ...
@@ -67,11 +64,6 @@ file_des_tpls = [
     ('data/workspace/sent_NNresults_test_semiannual_retrain_lead0m.pickle','k'),  # j/k -> cb  (GRU, GRUAE)
     ('data/workspace/sent_NNresults_test_semiannual_retrain_lead0e.pickle','e'),
     ('data/workspace/sent_NNresults_test_semiannual_retrain_lead0f.pickle','f'),
-    ('data/workspace/sent_NNresults_test_semiannual_retrain_lead0g.pickle','g'),
-    ('data/workspace/sent_NNresults_test_semiannual_retrain_lead0h.pickle','h'),
-    ('data/workspace/sent_NNresults_test_semiannual_retrain_lead0i.pickle','i'),
-    ('data/workspace/sent_NNresults_test_semiannual_retrain_lead0PLS.pickle','p'),
-    ('data/workspace/sent_NNresults_test_semiannual_retrain_lead0LAS.pickle','q'),
     ('data/workspace/sent_NNresults_test_semiannual_retrain_lead0logregL1.pickle','r')
 ]
 # selection of sentiment slot (NN = neuralnet)
@@ -331,16 +323,14 @@ Xs_discard = list(set(['$'+x+'$' for x in Xs_discard ]))
 # redo the colname map
 # apply
 final_colname_map = dict(zip(['d:sent-PCA', 'd:macro-PCA', 'd:SupAE', 'd:NNclssfr', 'k:GRU',
-       'e:SupAEdeep', 'e:NNclssfrdeep', 'f:NNregr', 'f:Supregr',
-       'g:SupAEshllw', 'g:NNclssfrshllw', 'h:AEdeep', 'i:SupAEdeeper',
-       'i:NNclssfrdeeper', 'p:PCAroll', 'p:PLSbin', 'p:PLSregr','q:Lasso', 'r:logregL1'  ],
+        'g:NNclssfrshllw'
+       'i:NNclssfrdeeper', 'p:PCAroll', 'p:PLSbin', 'p:PLSregr'   ],
                         ['d:sent-PCA', 'd:macro-PCA', 'Sup.AE', 'NNclass', 'GRU',
-       'e:SupAEdeep', 'e:NNclssfrdeep', 'f:NNregr', 'f:Supregr',
-       'g:SupAEshllw', 'g:NNclssfrshllw', 'h:AEdeep', 'i:SupAEdeeper',
-       'i:NNclssfrdeeper', 'PCA', 'PLSbin', 'PLS','Lasso','logregL1'  ]  ) )
+       'g:NNclssfrshllw',
+       'i:NNclssfrdeeper', 'PCA', 'PLSbin', 'PLS'  ]  ) )
 
 # selection:
-colselection = [  'PCA', 'PLS', 'Sup.AE', 'NNclass', 'GRU','Lasso','logregL1' ]  # 'PLSbin',
+colselection = [  'PCA', 'PLS', 'Sup.AE', 'NNclass', 'GRU' ]  # 'PLSbin',
 
 # blocks of x:
 blocksize = 5
