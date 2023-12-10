@@ -1,6 +1,6 @@
 
 # Code repo "news representation"
-Accompanies paper "Deep news representations for macro finance". 
+Accompanies paper "Learning Deep news representations for macro finance". 
 
 Implements pytorch versions of supervised autoencoder (SAE) architectures (see
 Le, L., Patterson, A., & White, M. (2018)) in the financial context of the paper.
