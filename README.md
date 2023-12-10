@@ -9,12 +9,13 @@ sae_start.py implements an example run for an example data set in the context of
 This includes all four competing models.
 repr_nb.ipynb contains a notebook with an SAE example. 
 
-The utils folder contains the bulk of the code for the neural representation retrieval:
+The utils folder contains the bulk of the code for the neural (+linear) representation retrieval:
  
 - data loaders
 - loss functions
 - models 
 - sae class with train and test functionality 
+- PLS / rolling analysis: linear tools
 
 The applications folder contains the code used in the applications sections of the paper. 
 
