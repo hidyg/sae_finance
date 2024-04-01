@@ -38,3 +38,9 @@ Early version of SAE implementation based off of https://github.com/mortezamg63/
 
 
 Le, L., Patterson, A., & White, M. (2018). Supervised autoencoders: Improving generalization performance with unsupervised regularizers. Advances in neural information processing systems, 31, 107-117.
+
+## A Note on the Hidden Representation Extraction
+
+Note that the specific architectures can induce sign flips from the 'hidden representation of interest' to the supervision variable. This is due to the last linear map.  When extracting the hidden representations,
+the 
+'predict_H' - function takes care of reconciling the signs of the hidden representations with the supervisions.

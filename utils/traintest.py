@@ -288,6 +288,7 @@ class sae:
                 #if self.model.enc.cl1.transforms[i].weight.data[0] > 0 and self.model.enc.cl1.transforms[i].weight.data[1] < 0:
                 if self.model.enc.cl1.transforms[i].weight.data[0] < 0:
                     pd_out[pd_out.columns[i]] = pd_out[pd_out.columns[i]]*-1
+                    print('signs flipped')
 
         return pd_out
 
