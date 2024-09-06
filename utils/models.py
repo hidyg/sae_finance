@@ -19,11 +19,11 @@ class HiddenElementsFinalLayer(nn.Module):
     def forward(self,
                 x:  torch.Tensor
                 ) -> torch.Tensor:
-        x_split = torch.split(x,1,1) # hidden_size elements
+        x_split = torch.split(x,1,-1) # hidden_size elements
         res = []
         for i,transform in enumerate(self.transforms):
             res.append( transform(x_split[i]) )
-        return torch.cat(res,dim = 1)
+        return torch.cat(res,dim = -1)
 
 
 
@@ -43,7 +43,7 @@ class HiddenElementsFinalLayer_fullyconnected(nn.Module):
         res = []
         for i,transform in enumerate(self.transforms):
             res.append( transform(x) )
-        return torch.cat(res,dim = 1)
+        return torch.cat(res,dim = -1)
 
 
 
