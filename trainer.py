@@ -64,6 +64,7 @@ class Trainer(object):
               lr : float = 0.005,
               weight_decay : float = 1e-5,
               loss : Callable = losses.loss_fixedW,
+              sup_loss_scale : float = 0.005,
               *args, **kwargs):
         
         train_loader, test_loader, _, _ = data_loader.load_sent_data(datasetclass = data_loader.sent_Dataset_sequence if self.sequential else data_loader.sent_Dataset,
@@ -87,7 +88,7 @@ class Trainer(object):
                                  sub_losses_in = list(sub_losses),
                                  train_loss_wgt = False,
                                  lr_in = lr,
-                                 sub_losses_in_wgt_init = (10 / self.representation_dim,) + (0.05 / self.representation_dim,) * self.representation_dim,
+                                 sub_losses_in_wgt_init = (10 / self.representation_dim,) + (10 * sup_loss_scale / self.representation_dim,) * self.representation_dim,
                                  classification = self.classification,
                                  firsttrain_reconstruction = 10,
                                  l2strength = weight_decay,
@@ -134,6 +135,11 @@ def compare_runs(*hyperparam_dicts : Dict[str, Union[str, Dict[str, Any]]],
     os.makedirs(exp_dir)
     
     results = {}
+
+    metric_col_names = ['reconstruction loss'] + [f'supervision loss ({feat_name})' for feat_name in Trainer.y_names] + ['total loss'] + [f'accuracy ({feat_name})' for feat_name in Trainer.y_names]
+
+    logs_dir = os.path.join(exp_dir, 'Logs')
+    os.mkdir(logs_dir)
     
     for i, hyperparams in enumerate(hyperparam_dicts):
         config_name = hyperparams.get('name', f'training {i+1}')
@@ -145,14 +151,16 @@ def compare_runs(*hyperparam_dicts : Dict[str, Union[str, Dict[str, Any]]],
         train_summ, val_summ = trainer.train(**training_params)
         accs, corrs = trainer.predict()
 
+        config_fname = config_name.replace(' ', '_')
+        colnames = [f'train {c}' for c in metric_col_names] + [f'validation {c}' for c in metric_col_names]
+        summaries = np.concatenate([train_summ, val_summ], axis = -1)
+        pd.DataFrame(summaries, columns = colnames).to_csv(os.path.join(logs_dir, f'{config_fname}_logs.csv'), index = False)
+
         results[config_name] = dict(config = hyperparams,
                                     train_metircs = train_summ,
                                     val_metrics = val_summ,
                                     accuracies = accs,
                                     correlations = corrs)
-    
-    #with open(os.path.join(exp_dir, 'configs.json'), 'w') as fstream:
-    #    json.dump({key: value.tolist() if isinstance(value, np.ndarray) else value for key, value in results.items()}, fstream)
     
     test_results = {name: {**{f'accuracy ({feat_name})': acc for feat_name, acc in zip(Trainer.y_names, result_dict['accuracies'])},
                            **{f'correlation ({feat_name})': acc for feat_name, acc in zip(Trainer.y_names, result_dict['correlations'])}}
@@ -160,8 +168,6 @@ def compare_runs(*hyperparam_dicts : Dict[str, Union[str, Dict[str, Any]]],
                     }
     results_df = pd.DataFrame(test_results).T
     results_df.to_csv(os.path.join(exp_dir, 'results.csv'))
-
-    metric_col_names = ['reconstruction loss'] + [f'supervision loss ({feat_name})' for feat_name in Trainer.y_names] + ['total loss'] + [f'accuracy ({feat_name})' for feat_name in Trainer.y_names]
 
     figs_dir = os.path.join(exp_dir, 'Figures')
     os.mkdir(figs_dir)
