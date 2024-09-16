@@ -113,7 +113,7 @@ class sent_Dataset_sequence(sent_Dataset_general):
             zeropad = np.zeros([self.sequence_length-idx-1,self.Xs.shape[1]], dtype= self.Xs.dtype)
             Xseq = self.Xs[0:(idx + 1), :]
             Xseq = np.concatenate((zeropad,Xseq ))
-        return (Xseq, self.Ys[[idx], ...], idx)
+        return (Xseq, self.Ys[idx], idx)
 
 
 
