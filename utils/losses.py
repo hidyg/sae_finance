@@ -118,6 +118,24 @@ def loss_fixedW(
 
     return l, sublosses
 
+def loss_fixedW_w_max(
+        y_hat: torch.Tensor,
+        x_hat: torch.Tensor,
+        y: torch.Tensor,
+        x:torch.Tensor,
+        log_lossweights: List[torch.Tensor],
+        losses: List[torch.Tensor]
+    ) -> Tuple[ torch.Tensor, List[ torch.Tensor ]] :
+
+    if x.ndim > 2 and x_hat.ndim <= 2:
+        x = x[:, -1]
+    rec_loss = log_lossweights[0] * losses[0](x_hat, x)
+    
+    sup_losses = [weight * loss(y_hat[:, i], y[:, i]) for i, (loss, weight) in enumerate(zip(losses[1:], log_lossweights[1:]))]
+    agg_sup_loss, _ = torch.max(torch.stack(sup_losses), axis = 0)
+
+    return rec_loss + agg_sup_loss, [rec_loss, *sup_losses]
+
 
 
 # loss for shallow autoencoder / PCA
