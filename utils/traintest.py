@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import pandas as pd
+from tqdm import tqdm
 from utils.losses import sparse_loss
 # tensorboard
 from tensorboardX import SummaryWriter
@@ -110,7 +111,7 @@ class sae:
         all_epoch_losses = []
         all_epoch_losses_val = []
 
-        for epoch in range(epochs):
+        for epoch in tqdm(range(epochs), unit = 'epoch'):
             self.model.train()
             epch_loss = 0.0  # per epoch loss
             epch_acc = [0.0] *(len(self.sub_losses)-1)
@@ -118,6 +119,7 @@ class sae:
             component_losses = [0.0 for x in self.sub_losses ]
 
             epch_loss_val = 0.0
+            epch_acc_val = [0.0 for _ in self.sub_losses[1:]]
             component_losses_val = [0.0 for x in self.sub_losses]
 
             # in the firsttrain_reconstruction epochs, only train the reconstruction loss
@@ -132,6 +134,9 @@ class sae:
 
                 X = X.to(self.device)
                 y = y.to(self.device)
+
+                if self.classification:
+                    y = (y > 0.).int()
 
                 # squeeze necessary (altern...change trainloader (to do))
                 if len(y.shape) > 2:
@@ -150,13 +155,13 @@ class sae:
                 epch_loss += loss.item() / len(train_loader)
 
                 # get accuracies
-                if self.classification:
-                    for i in range(0,(len(self.sub_losses)-1)):
-                        # only first classification at this stage
-                        #_, pred_class = torch.max(y_hat[:,(i*2):(i*2+2)].data, 1)  # returns tuple
-                        pred_class = (y_hat[:, i].data > torch.tensor(0.5)).int()  #
-                        # add up mini batch acc
-                        epch_acc[i] += (pred_class.unsqueeze(1) == y[:,i].unsqueeze(1) ).sum().item() / (len(train_loader) * X.size(0))
+                for i in range(0,(len(self.sub_losses)-1)):
+                    # only first classification at this stage
+                    #_, pred_class = torch.max(y_hat[:,(i*2):(i*2+2)].data, 1)  # returns tuple
+                    pred_class = (y_hat[:, i].data > torch.tensor(0.5)).int()  #
+                    gt_class = (y[:, i] > 0.).int()
+                    # add up mini batch acc
+                    epch_acc[i] += (pred_class.unsqueeze(1) == gt_class.unsqueeze(1) ).sum().item() / (len(train_loader) * X.size(0))
 
                 # loss components
                 for k in range(0, len(self.sub_losses)):
@@ -168,12 +173,12 @@ class sae:
 
             #  collect losses
             all_epoch_losses.append( component_losses + [epch_loss] + epch_acc )
-            print('SAE train: Batch Nr', batchidx, ' iteration')
-            print('SAE train: Epoch: ', epoch, ' - train_loss: ', epch_loss)
-            print('SAE train: Epoch: ', epoch, ' - train_accuracies  (if classif.): ', epch_acc)
-            printout = 'SAE train: Epoch: '+ str( epoch )
-            printout = printout + '. '.join([' - loss_' +str(lnr)+':' + str(component_losses[lnr])   for lnr in range(0,len(self.sub_losses))])
-            print(printout) #'SAE train: Epoch: ', epoch, ' - loss_1: ', component_losses[0], ' - loss_2: ', component_losses[1]
+            # print('SAE train: Batch Nr', batchidx, ' iteration')
+            # print('SAE train: Epoch: ', epoch, ' - train_loss: ', epch_loss)
+            # print('SAE train: Epoch: ', epoch, ' - train_accuracies: ', epch_acc)
+            # printout = 'SAE train: Epoch: '+ str( epoch )
+            # printout = printout + '. '.join([' - loss_' +str(lnr)+':' + str(component_losses[lnr])   for lnr in range(0,len(self.sub_losses))])
+            # print(printout) #'SAE train: Epoch: ', epoch, ' - loss_1: ', component_losses[0], ' - loss_2: ', component_losses[1]
 
             # write tensorboardX summary
             self.write_tx_summaries( run_type='(training)', component_losses=component_losses,
@@ -182,25 +187,34 @@ class sae:
             if val_loader is not None:
                 # evaluate model on validation data
                 for (Xv, yv, _) in val_loader:
+                    if self.classification:
+                        yv = (yv > 0).int()
                     # squeeze necessary (altern...change trainloader (to do))
                     if len(yv.shape) > 2:
                         yv = yv.squeeze(1)
                     #Xv = torch.Tensor(Xv).to(self.device)
                     Xv = Xv.to(self.device)
                     yv_B, xv_B, _, _ = self.model(Xv)
-                    lossv, loss_componentsv = self.loss_fct(yv_B, xv_B, yv, Xv, losswgt_in, self.sub_losses)
+                    lossv, loss_componentsv = self.loss_fct(yv_B, xv_B, yv.float(), Xv, losswgt_in, self.sub_losses)
                     # add up mini batch losses
                     epch_loss_val += lossv.item() / len(val_loader)
                     # loss components
                     for k in range(0, len(self.sub_losses)):
                         component_losses_val[k] += loss_componentsv[k].item() / len(val_loader)
-                all_epoch_losses_val.append(component_losses_val + [epch_loss_val] + [0.0] )
+                    for i in range(0,(len(self.sub_losses)-1)):
+                        # only first classification at this stage
+                        #_, pred_class = torch.max(y_hat[:,(i*2):(i*2+2)].data, 1)  # returns tuple
+                        pred_class = (yv_B[:, i].data > torch.tensor(0.5)).int()  #
+                        gt_class = (yv[:, i] > 0.).int()
+                        # add up mini batch acc
+                        epch_acc_val[i] += (pred_class.unsqueeze(1) == gt_class.unsqueeze(1) ).sum().item() / (len(val_loader) * Xv.size(0))
+                all_epoch_losses_val.append(component_losses_val + [epch_loss_val] + epch_acc_val)
 
                 # tensorboardX summary
                 self.write_tx_summaries(run_type='(validation)',component_losses=component_losses_val,
                                         epch_loss = epch_loss_val,epch_acc=[], e = epoch)
 
-            print('SAE train: Epoch: ', epoch, ' - loss weights: ', losswgt_in)  # params[-len(lossweights):]
+            # print('SAE train: Epoch: ', epoch, ' - loss weights: ', losswgt_in)  # params[-len(lossweights):]
 
         self.all_losses = all_epoch_losses
         self.all_losses_val = all_epoch_losses_val
@@ -249,6 +263,9 @@ class sae:
         self.model.eval()
 
         X = torch.tensor(X_in, dtype = torch.float, device=self.device) # customize this
+        if X.ndim < 3:
+            X = torch.unsqueeze(X, 0)
+
         if trainloader is None and testloader is None:
             with torch.no_grad():
                 # dont train, use trained model
