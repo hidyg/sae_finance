@@ -8,7 +8,7 @@ from utils.losses import sparse_loss
 # tensorboard
 from tensorboardX import SummaryWriter
 # import tensorflow as tf
-from typing import Callable, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 
 
@@ -21,6 +21,7 @@ class sae:
                  sub_losses_in: List[nn.Module] = [ nn.CrossEntropyLoss() , nn.L1Loss() ],
                  sub_losses_in_wgt_init: List[float] = [ np.sqrt(0.1),  np.sqrt(20.0)],
                  lr_in: float = 0.01, # eta
+                 scheduler_in : Optional[Dict[str, Union[type, Dict[str, Any]]]] = None,
                  optim_in: optim.Optimizer = optim.Adam,
                  l2strength: float = 0.0,
                  l1strength: float = 0.0,
@@ -38,6 +39,7 @@ class sae:
         :param sub_losses_in: sub losses as list (mostly from nn.****)
         :param sub_losses_in_wgt_init: weights of losses (initial weights if trained, fixed if not trained)
         :param lr_in: learning rate
+        :param scheduler_in: dict of the type and hyperparams of the learning rate scheduler
         :param optim_in: the optimizer ... Adam, pure SGD+ nesterovmom
         :param l2strength: L2 reg on weights
         :param l1strength: L1 reg on weights (not used)
@@ -50,6 +52,7 @@ class sae:
         self.model = model_in
         self.loss_fct = loss_fct_in
         self.lr_in = lr_in
+        self.scheduler_dict = scheduler_in
         self.sub_losses = sub_losses_in
         self.sub_losses_wgt = sub_losses_in_wgt_init
         self.optim_in = optim_in
@@ -106,6 +109,8 @@ class sae:
         optimizer = self.optim_in(params,
                                   lr=self.lr_in, weight_decay=self.l2_strength )  # ADAM -> adaptive learning rate
         # optimizer = optim.SGD(DNN.parameters(), lr=0.001, momentum=0.8)  # ADAM -> adaptive learning rate
+        if self.scheduler_dict is not None:
+            lr_scheduler : torch.optim.lr_scheduler._LRScheduler = self.scheduler_dict['type'](optimizer, **self.scheduler_dict['params'])
 
         batchidx = 0
         all_epoch_losses = []
@@ -166,6 +171,10 @@ class sae:
                 # loss components
                 for k in range(0, len(self.sub_losses)):
                     component_losses[k] += loss_components[k].item() / len(train_loader)
+
+            
+            if self.scheduler_dict is not None:
+                lr_scheduler.step()
 
             if self.save_model:
                 # to do, save after each epch
