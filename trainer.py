@@ -18,6 +18,9 @@ class Trainer(object):
 
     y_names = ('Eq', 'FI', 'Macr', 'Cmdty', 'FX')
 
+    pd_X = pd.read_csv('https://www.dropbox.com/scl/fi/7moh3dehhxxm3qp0x05c4/sample_data_X.csv?rlkey=8f7su6vcj9c22gqui5oj13wdm&dl=1',index_col='DATE' )
+    pd_y = pd.read_csv('https://www.dropbox.com/scl/fi/4jjzh0zhz9jo950w7h250/sample_data_y.csv?rlkey=y9v5ntkdbvunn04g8t43h62yi&dl=1',index_col='DATE' )
+
     def __init__(self,
                  classification : bool = True,
                  fc_sup_head : bool = False,
@@ -39,7 +42,7 @@ class Trainer(object):
         self.sequential = sequential
         self.seq_len = seq_len
 
-        self.pd_X, self.pd_y = self.load_dataframes()
+        self.index_dataframes()
         self.X_names_in = self.pd_X.columns
         self.Y_names_in = self.pd_y.columns
         self.Y_name_types = {y: float for y in self.Y_names_in}
@@ -119,16 +122,15 @@ class Trainer(object):
         corrs = np.array([np.corrcoef(y[:, i], y_hat[:, i])[0, 1] for i in range(self.representation_dim)])
         return accs, corrs
     
-    @staticmethod
-    def load_dataframes():
+    @classmethod
+    def index_dataframes(self):
         # sample data (with some random noise overlay)
-        pd_X = pd.read_csv('https://www.dropbox.com/scl/fi/7moh3dehhxxm3qp0x05c4/sample_data_X.csv?rlkey=8f7su6vcj9c22gqui5oj13wdm&dl=1',index_col='DATE' )
-        pd_y = pd.read_csv('https://www.dropbox.com/scl/fi/4jjzh0zhz9jo950w7h250/sample_data_y.csv?rlkey=y9v5ntkdbvunn04g8t43h62yi&dl=1',index_col='DATE' )
-        pd_X.index = pd.to_datetime(pd_X.index,format='%Y-%m-%d')
-        for c in pd_X.columns:
-            pd_X[c] = pd_X[c].astype(np.float32)
-        pd_y.index = pd.to_datetime(pd_y.index,format='%Y-%m-%d')
-        return pd_X, pd_y
+        self.pd_X.index = pd.to_datetime(self.pd_X.index,format='%Y-%m-%d')
+        for c in self.pd_X.columns:
+            self.pd_X[c] = self.pd_X[c].astype(np.float32)
+        self.pd_y.index = pd.to_datetime(self.pd_y.index,format='%Y-%m-%d')
+        
+        return self.pd_X, self.pd_y
     
 def compare_runs(*hyperparam_dicts : Dict[str, Union[str, Dict[str, Any]]],
                  exp_name : str,
