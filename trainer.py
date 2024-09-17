@@ -20,6 +20,7 @@ class Trainer(object):
 
     def __init__(self,
                  classification : bool = True,
+                 fc_sup_head : bool = False,
                  encoder_class : Optional[type] = None,
                  encoder_params : Dict[str, Any] = {},
                  decoder_class : Optional[type] = None,
@@ -56,7 +57,8 @@ class Trainer(object):
                                                dropout_p = dropout,
                                                classification = classification,
                                                external_enc = encoder,
-                                               activations = activations)
+                                               activations = activations,
+                                               fc_sup_head = fc_sup_head)
 
     def train(self,
               num_epochs : int = 40,

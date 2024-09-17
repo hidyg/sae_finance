@@ -196,7 +196,8 @@ class TransformerEncoder(nn.Module):
                  dropout : float = 0.1,
                  activations : Dict[str, nn.Module] = dict(H = nn.LeakyReLU(0.2), loss = nn.Sigmoid()),
                  positional_encoding : Literal['none', 'sinusoidal', 'trainable'] = 'sinusoidal',
-                 max_input_len : int = 1024
+                 max_input_len : int = 1024,
+                 *args, **kwargs
                  ):
         
         super().__init__()
@@ -266,10 +267,11 @@ class encoder_decoder(nn.Module):
                  classification: bool = True,
                  activations: Dict[str, nn.Module ]  =
                     {'initial': nn.Tanh(), 'H': nn.Tanh(), 'loss': nn.Tanh(), 'final': nn.Identity()},
-                 external_enc = Union[nn.Module,None] ):
+                 external_enc = Union[nn.Module,None],
+                 fc_sup_head : bool = False):
         super(encoder_decoder, self).__init__()
         if external_enc is None:
-            self.enc = encoder_netw(X_dim_in, map_layer_dims, encoding_layer_dim, dropout_p, classification,activations )
+            self.enc = encoder_netw(X_dim_in, map_layer_dims, encoding_layer_dim, dropout_p, classification,activations, fc_last_lyr = fc_sup_head)
         else:
             self.enc = external_enc
         self.dec = decoder_netw( X_dim_in, map_layer_dims, encoding_layer_dim, dropout_p, activations )
